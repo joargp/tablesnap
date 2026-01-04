@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	_ "embed"
 	"flag"
 	"fmt"
 	"image/color"
@@ -11,7 +12,11 @@ import (
 	"strings"
 
 	"github.com/fogleman/gg"
+	"github.com/golang/freetype/truetype"
 )
+
+//go:embed fonts/Inter-Regular.ttf
+var interFont []byte
 
 type Theme struct {
 	Background color.Color
@@ -153,20 +158,14 @@ func parseTable(input string) ([][]string, error) {
 }
 
 func loadFont(dc *gg.Context, size float64) error {
-	// Try common macOS fonts
-	fonts := []string{
-		"/System/Library/Fonts/SFNS.ttf",
-		"/System/Library/Fonts/SFNSMono.ttf",
-		"/System/Library/Fonts/Helvetica.ttc",
-		"/Library/Fonts/Arial.ttf",
-		"/System/Library/Fonts/Menlo.ttc",
+	// Use embedded Inter font for cross-platform support
+	font, err := truetype.Parse(interFont)
+	if err != nil {
+		return fmt.Errorf("failed to parse embedded font: %w", err)
 	}
-	for _, f := range fonts {
-		if err := dc.LoadFontFace(f, size); err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("no suitable font found")
+	face := truetype.NewFace(font, &truetype.Options{Size: size})
+	dc.SetFontFace(face)
+	return nil
 }
 
 func measureTable(dc *gg.Context, rows [][]string, padding float64) ([]float64, float64) {
