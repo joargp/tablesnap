@@ -5,26 +5,38 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"os"
+	"path/filepath"
 	"strings"
-	"unicode/utf8"
 )
 
 //go:embed twemoji/*.png
 var twemojiFS embed.FS
 
-// emojiMap maps emoji runes to their Twemoji filename (without .png)
-var emojiMap = map[rune]string{
-	'✅': "2705",
-	'❌': "274c",
-	'⭕': "2b55",
-	'⚠': "26a0",
-	'🔴': "1f534",
-	'🟢': "1f7e2",
-	'🟡': "1f7e1",
+// cacheDir returns the emoji cache directory
+func emojiCacheDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".cache", "tablesnap", "twemoji")
 }
 
-// loadTwemoji loads a Twemoji PNG by codepoint
-func loadTwemoji(codepoint string) (image.Image, error) {
+// emojiToCodepoint converts an emoji rune to hex codepoint
+func emojiToCodepoint(r rune) string {
+	return fmt.Sprintf("%x", r)
+}
+
+// loadEmojiFromCache tries to load emoji from cache
+func loadEmojiFromCache(codepoint string) (image.Image, error) {
+	path := filepath.Join(emojiCacheDir(), codepoint+".png")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return png.Decode(f)
+}
+
+// loadEmojiFromBundle tries to load emoji from embedded bundle
+func loadEmojiFromBundle(codepoint string) (image.Image, error) {
 	data, err := twemojiFS.ReadFile("twemoji/" + codepoint + ".png")
 	if err != nil {
 		return nil, err
@@ -32,11 +44,40 @@ func loadTwemoji(codepoint string) (image.Image, error) {
 	return png.Decode(strings.NewReader(string(data)))
 }
 
+// GetEmojiImage returns the emoji image, checking cache first then bundle
+func GetEmojiImage(r rune) (image.Image, bool) {
+	codepoint := emojiToCodepoint(r)
+	
+	// Try cache first (full set)
+	if img, err := loadEmojiFromCache(codepoint); err == nil {
+		return img, true
+	}
+	
+	// Try bundle (minimal set)
+	if img, err := loadEmojiFromBundle(codepoint); err == nil {
+		return img, true
+	}
+	
+	return nil, false
+}
+
+// IsEmoji checks if a rune is likely an emoji (simplified check)
+func IsEmoji(r rune) bool {
+	// Common emoji ranges
+	return (r >= 0x1F300 && r <= 0x1F9FF) || // Misc Symbols, Emoticons, etc
+		(r >= 0x2600 && r <= 0x26FF) ||       // Misc Symbols
+		(r >= 0x2700 && r <= 0x27BF) ||       // Dingbats
+		(r >= 0x2300 && r <= 0x23FF) ||       // Misc Technical
+		r == 0x2705 || r == 0x274C ||         // ✅ ❌
+		r == 0x2B55 || r == 0x26A0            // ⭕ ⚠
+}
+
 // EmojiSegment represents either text or an emoji
 type EmojiSegment struct {
-	Text    string
-	IsEmoji bool
-	Emoji   rune
+	Text      string
+	IsEmoji   bool
+	Emoji     rune
+	Supported bool
 }
 
 // ParseEmoji splits a string into text and emoji segments
@@ -45,13 +86,14 @@ func ParseEmoji(s string) []EmojiSegment {
 	var textBuf strings.Builder
 	
 	for _, r := range s {
-		if _, ok := emojiMap[r]; ok {
+		if IsEmoji(r) {
 			// Flush text buffer
 			if textBuf.Len() > 0 {
 				segments = append(segments, EmojiSegment{Text: textBuf.String()})
 				textBuf.Reset()
 			}
-			segments = append(segments, EmojiSegment{IsEmoji: true, Emoji: r})
+			_, supported := GetEmojiImage(r)
+			segments = append(segments, EmojiSegment{IsEmoji: true, Emoji: r, Supported: supported})
 		} else {
 			textBuf.WriteRune(r)
 		}
@@ -65,32 +107,8 @@ func ParseEmoji(s string) []EmojiSegment {
 	return segments
 }
 
-// GetEmojiImage returns the Twemoji image for a rune
-func GetEmojiImage(r rune) (image.Image, error) {
-	codepoint, ok := emojiMap[r]
-	if !ok {
-		return nil, fmt.Errorf("emoji not found: %c", r)
-	}
-	return loadTwemoji(codepoint)
-}
-
-// HasEmoji checks if a string contains any supported emoji
-func HasEmoji(s string) bool {
-	for _, r := range s {
-		if _, ok := emojiMap[r]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-// TextWidth returns approximate width without emoji
-func TextWidthWithoutEmoji(s string) int {
-	count := 0
-	for _, r := range s {
-		if _, ok := emojiMap[r]; !ok {
-			count += utf8.RuneLen(r)
-		}
-	}
-	return count
+// HasCachedEmojis checks if full emoji set is installed
+func HasCachedEmojis() bool {
+	info, err := os.Stat(emojiCacheDir())
+	return err == nil && info.IsDir()
 }

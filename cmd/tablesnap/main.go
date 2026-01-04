@@ -182,13 +182,17 @@ func drawTextWithEmoji(dc *gg.Context, cell string, x, y, fontSize float64) {
 	
 	for _, seg := range segments {
 		if seg.IsEmoji {
-			// Draw emoji image
-			if img, err := GetEmojiImage(seg.Emoji); err == nil {
-				// Resize to font size
+			if img, ok := GetEmojiImage(seg.Emoji); ok {
+				// Draw emoji image
 				emojiSize := uint(fontSize)
 				resized := resize.Resize(emojiSize, emojiSize, img, resize.Lanczos3)
 				dc.DrawImage(resized, int(currentX), int(y-fontSize*0.8))
 				currentX += fontSize
+			} else {
+				// Fallback: draw □ for unsupported emoji
+				dc.DrawString("□", currentX, y)
+				w, _ := dc.MeasureString("□")
+				currentX += w
 			}
 		} else {
 			dc.DrawString(seg.Text, currentX, y)
@@ -272,6 +276,19 @@ func renderTable(rows [][]string, theme Theme, fontSize, padding float64) (*gg.C
 }
 
 func main() {
+	// Handle subcommands
+	if len(os.Args) >= 2 && os.Args[1] == "emojis" {
+		if len(os.Args) >= 3 && os.Args[2] == "install" {
+			if err := installEmojis(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		}
+		fmt.Println("Usage: tablesnap emojis install")
+		return
+	}
+
 	inputFile := flag.String("i", "", "Input file (default: stdin)")
 	outputFile := flag.String("o", "", "Output file (default: stdout)")
 	themeName := flag.String("theme", "dark", "Theme: dark or light")
