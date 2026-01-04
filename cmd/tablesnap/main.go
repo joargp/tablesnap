@@ -13,6 +13,7 @@ import (
 
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
+	"github.com/nfnt/resize"
 )
 
 //go:embed fonts/Inter-Regular.ttf
@@ -140,7 +141,22 @@ func loadFont(dc *gg.Context, size float64) error {
 	return nil
 }
 
-func measureTable(dc *gg.Context, rows [][]string, padding float64) ([]float64, float64) {
+// measureCellWithEmoji measures cell width accounting for emoji
+func measureCellWithEmoji(dc *gg.Context, cell string, fontSize float64) float64 {
+	segments := ParseEmoji(cell)
+	width := 0.0
+	for _, seg := range segments {
+		if seg.IsEmoji {
+			width += fontSize // emoji width ≈ font size
+		} else {
+			w, _ := dc.MeasureString(seg.Text)
+			width += w
+		}
+	}
+	return width
+}
+
+func measureTable(dc *gg.Context, rows [][]string, padding, fontSize float64) ([]float64, float64) {
 	colWidths := make([]float64, len(rows[0]))
 	_, fontHeight := dc.MeasureString("Mg")
 	rowHeight := fontHeight + padding*2
@@ -150,13 +166,36 @@ func measureTable(dc *gg.Context, rows [][]string, padding float64) ([]float64, 
 			if i >= len(colWidths) {
 				continue
 			}
-			w, _ := dc.MeasureString(cell)
+			w := measureCellWithEmoji(dc, cell, fontSize)
 			if w+padding*2 > colWidths[i] {
 				colWidths[i] = w + padding*2
 			}
 		}
 	}
 	return colWidths, rowHeight
+}
+
+// drawTextWithEmoji draws text with emoji images overlaid
+func drawTextWithEmoji(dc *gg.Context, cell string, x, y, fontSize float64) {
+	segments := ParseEmoji(cell)
+	currentX := x
+	
+	for _, seg := range segments {
+		if seg.IsEmoji {
+			// Draw emoji image
+			if img, err := GetEmojiImage(seg.Emoji); err == nil {
+				// Resize to font size
+				emojiSize := uint(fontSize)
+				resized := resize.Resize(emojiSize, emojiSize, img, resize.Lanczos3)
+				dc.DrawImage(resized, int(currentX), int(y-fontSize*0.8))
+				currentX += fontSize
+			}
+		} else {
+			dc.DrawString(seg.Text, currentX, y)
+			w, _ := dc.MeasureString(seg.Text)
+			currentX += w
+		}
+	}
 }
 
 func renderTable(rows [][]string, theme Theme, fontSize, padding float64) (*gg.Context, error) {
@@ -166,7 +205,7 @@ func renderTable(rows [][]string, theme Theme, fontSize, padding float64) (*gg.C
 		return nil, err
 	}
 	
-	colWidths, rowHeight := measureTable(tmpDc, rows, padding)
+	colWidths, rowHeight := measureTable(tmpDc, rows, padding, fontSize)
 	
 	// Calculate total size
 	totalWidth := padding * 2
@@ -222,7 +261,7 @@ func renderTable(rows [][]string, theme Theme, fontSize, padding float64) (*gg.C
 				dc.SetColor(theme.Text)
 			}
 			_, fh := dc.MeasureString("Mg")
-			dc.DrawString(cell, x+padding, y+fh+padding/2)
+			drawTextWithEmoji(dc, cell, x+padding, y+fh+padding/2, fontSize)
 			
 			x += colWidths[i]
 		}
