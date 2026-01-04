@@ -47,34 +47,6 @@ var lightTheme = Theme{
 
 const maxScanTokenSize = 1024 * 1024
 
-// emojiReplacements maps common emoji to text equivalents
-// since most system fonts don't include emoji glyphs
-var emojiReplacements = map[string]string{
-	"✅": "✓",
-	"❌": "✗",
-	"⭕": "○",
-	"❎": "✗",
-	"☑️": "✓",
-	"✔️": "✓",
-	"✖️": "✗",
-	"⚠️": "⚠",
-	"🔴": "●",
-	"🟢": "●",
-	"🟡": "●",
-	"⬜": "□",
-	"⬛": "■",
-	"🔲": "□",
-	"🔳": "□",
-}
-
-func replaceEmoji(input string) string {
-	result := input
-	for emoji, replacement := range emojiReplacements {
-		result = strings.ReplaceAll(result, emoji, replacement)
-	}
-	return result
-}
-
 func splitRow(line string) []string {
 	parts := strings.Split(line, "|")
 	if len(parts) == 0 {
@@ -286,9 +258,6 @@ func main() {
 		input = string(data)
 	}
 	
-	// Replace emoji with text equivalents
-	input = replaceEmoji(input)
-
 	// Parse table
 	rows, err := parseTable(input)
 	if err != nil {

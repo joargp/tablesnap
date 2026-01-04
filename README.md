@@ -50,6 +50,20 @@ tablesnap --theme light --font-size 16 --padding 12 -o table.png
 - Text: `#333333`
 - Headers: `#1a73e8`
 
+## Supported Symbols
+
+The bundled Inter font supports these symbols:
+
+| Use | Symbol |
+|-----|--------|
+| Yes/check | ✓ |
+| No/cross | ✗ |
+| Bullet | ● ○ |
+| Star | ★ ☆ |
+| Arrow | → ← ↑ ↓ |
+
+**Note:** Emoji (✅ ❌ 🔴) are not supported — use text symbols instead.
+
 ## Why?
 
 Messaging apps like Telegram don't render markdown tables. This tool converts them to clean PNG images that display correctly everywhere.
