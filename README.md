@@ -38,6 +38,27 @@ tablesnap --theme light --font-size 16 --padding 12 -o table.png
 | `--font-size` | 14 | Font size in pixels |
 | `--padding` | 10 | Cell padding in pixels |
 
+## Emoji Support 🎉
+
+tablesnap supports color emoji via [Twemoji](https://github.com/twitter/twemoji):
+
+**Bundled emoji** (work out of the box):
+- ✅ ❌ 🔴 🟢 🟡 ⭕ ⚠️
+
+**Full emoji support** (one-time download):
+```bash
+tablesnap emojis install
+```
+
+This downloads all 3,689 Twemoji to `~/.cache/tablesnap/twemoji/` (~14MB).
+
+After installing, any emoji works:
+```bash
+echo "| Status | 🎉 🚀 👍 🔥 |" | tablesnap -o table.png
+```
+
+Unsupported emoji (before installing full set) render as □.
+
 ## Themes
 
 **Dark** (default) — perfect for Telegram, Discord, Slack dark mode:
@@ -52,7 +73,7 @@ tablesnap --theme light --font-size 16 --padding 12 -o table.png
 
 ## Supported Symbols
 
-The bundled Inter font supports these symbols:
+The bundled Inter font also supports these text symbols:
 
 | Use | Symbol |
 |-----|--------|
@@ -61,8 +82,6 @@ The bundled Inter font supports these symbols:
 | Bullet | ● ○ |
 | Star | ★ ☆ |
 | Arrow | → ← ↑ ↓ |
-
-**Note:** Emoji (✅ ❌ 🔴) are not supported — use text symbols instead.
 
 ## Why?
 
